@@ -19,7 +19,7 @@ The receiver has no public endpoint. The workflow dials it through your Ziti net
    permissions:
      id-token: write   # optional, sends a GitHub OIDC token as a bearer
    steps:
-     - uses: dovholuknf/ziti-hook@v1
+     - uses: dovholuknf/ziti-hook@main
        with:
          transport: ziti
          url: http://ziti-hook.ziti/

@@ -3,7 +3,7 @@
 A GitHub Action that POSTs an arbitrary payload to a webhook receiver with no public endpoint. The receiver is
 generic and is not tied to atrium. Two transports: a zrok private share, and pure OpenZiti.
 
-Repo name: `ziti-hook`, used as `uses: dovholuknf/ziti-hook@v1`.
+Repo name: `ziti-hook`, used as `uses: dovholuknf/ziti-hook@main`.
 
 ## Decisions so far
 
