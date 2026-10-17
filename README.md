@@ -1,8 +1,8 @@
 # ziti-hook
 
-A GitHub Action that POSTs a payload to a webhook receiver that has no public endpoint. It reaches the receiver over
-OpenZiti or over a zrok private share. By default it sends the raw GitHub event JSON, and it can send any body you give
-it.
+ziti-hook is a GitHub Action that POSTs a payload to a webhook receiver that has no public endpoint. It reaches the
+receiver over OpenZiti or over a zrok private share. By default it sends the raw GitHub event JSON, but you can give it
+any body you like.
 
 ```yaml
 permissions:
@@ -18,14 +18,15 @@ steps:
 
 ## Which transport
 
-OpenZiti and a zrok private share both keep the receiver off the public internet. Nothing listens for strangers, so
-only a credential holder can reach it. A public zrok share is easier but exposes a URL. See
-[why a private share](docs/zrok.md#why-a-private-share) for the tradeoff.
+OpenZiti and a zrok private share both keep the receiver off the public internet. Only a holder of the right credential
+can reach it, and nothing listens for strangers. OpenZiti gives you the narrowest credential if you already run a Ziti
+network. A zrok private share is the quicker setup, and a public zrok share is quicker still but exposes a URL. Each
+guide explains the tradeoff in its own "Why" section.
 
 ## Set up
 
-- [OpenZiti guide](docs/openziti.md)
-- [zrok guide](docs/zrok.md)
+- [OpenZiti guide](docs/openziti.md#why-openziti)
+- [zrok guide](docs/zrok.md#why-a-private-share)
 
 ## Inputs
 
