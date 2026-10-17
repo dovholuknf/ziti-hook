@@ -1,0 +1,48 @@
+name: ziti-hook
+description: POST a payload to a webhook receiver with no public endpoint, over OpenZiti or a zrok private share.
+branding:
+  icon: send
+  color: green
+inputs:
+  transport:
+    description: ziti or zrok
+    default: ziti
+  url:
+    description: Receiver URL. For ziti use the intercept address, for example http://ziti-hook.ziti/
+    required: true
+  payload:
+    description: Request body. Defaults to the raw GitHub event JSON.
+    default: ""
+  content-type:
+    description: Content type of payload
+    default: application/json
+  headers:
+    description: Extra headers, one "Name: value" per line
+    default: ""
+  secret:
+    description: Shared secret, sent in secret-header
+    default: ""
+  secret-header:
+    description: Header name for the shared secret
+    default: X-Ziti-Hook-Secret
+  audience:
+    description: Audience claim for the GitHub OIDC token. The token is sent only if the job has id-token write.
+    default: ""
+  timeout:
+    description: Request timeout in seconds
+    default: "30"
+  ziti-identity:
+    description: Contents of an enrolled OpenZiti identity JSON. Store it as a secret. Needed for transport ziti.
+    default: ""
+  zrok-env:
+    description: Output of bootstrap-zrok, a base64 tarball of an enabled zrok environment. Needed for transport zrok.
+    default: ""
+  zrok-share-token:
+    description: Token of the zrok private share. Needed for transport zrok.
+    default: ""
+outputs:
+  status:
+    description: HTTP status returned by the receiver
+runs:
+  using: docker
+  image: Dockerfile
