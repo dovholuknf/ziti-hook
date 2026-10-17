@@ -16,6 +16,12 @@ steps:
       secret: ${{ secrets.HOOK_SECRET }}
 ```
 
+## Which transport
+
+OpenZiti and a zrok private share both keep the receiver off the public internet. Nothing listens for strangers, so
+only a credential holder can reach it. A public zrok share is easier but exposes a URL. See
+[why a private share](docs/zrok.md#why-a-private-share) for the tradeoff.
+
 ## Set up
 
 - [OpenZiti guide](docs/openziti.md)
