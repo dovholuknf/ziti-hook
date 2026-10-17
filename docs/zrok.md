@@ -4,23 +4,22 @@ The receiver has no public endpoint. The workflow dials a zrok private share wit
 
 ## Why a private share
 
-A public zrok share is the easy option. You run one command and the receiver gets a public URL that GitHub can reach.
-For a webhook that is often fine, but the URL is on the open internet, so anyone who finds it can send it traffic.
-Your only defense is the receiver itself. That means a shared secret, basic auth or OAuth, and however well the
-receiver handles a request from a stranger.
+A zrok private share is a share that has no public URL. Only a zrok environment that has been granted access can reach
+it, and the receiver behind it makes only outbound connections. A public share is easier. You run one command and GitHub
+reaches the receiver at a public URL. That URL is on the open internet though, so anyone who finds it can send it
+traffic. Your only defense is the receiver, and it has to cope with whatever a stranger sends.
 
-A private share has no URL. Nothing listens on the internet and nothing answers a port scan. Only an environment that
-zrok has granted access to the share can reach it. A request from anyone else never arrives, so the receiver doesn't
-have to survive it. The receiver also makes only outbound connections, so you don't open an inbound port and you need
-no firewall rule, dynamic DNS or certificate.
+With a private share nothing listens on the internet and nothing answers a port scan. A request from anyone else never
+arrives, so the receiver doesn't have to deal with it. There is no need to open an inbound port, no need for a firewall
+rule, and no need for dynamic DNS or a certificate.
 
-The cost is a credential. A public share needs only a secret header, but a private share needs the copied zrok
-environment on the runner, and that environment is a real credential. Use a dedicated zrok account so a leak exposes
-only that account. You revoke it by disabling the environment. The shared secret header stays as a second check at the
-receiver.
+Using a private share isn't free, because it costs you a credential. A public share needs only a secret header, but a
+private share needs the copied zrok environment on the runner, and that environment can dial your share. You should use
+a dedicated zrok account so a leak exposes only that account, and you revoke it by disabling the environment. The shared
+secret header still works as a second check at the receiver.
 
-Choose public when you want the least setup and the receiver can defend itself. Choose private when the receiver
-must stay off the internet.
+Choose a public share when you want the least setup and the receiver can defend itself. Choose a private share when the
+receiver **must** stay off the internet.
 
 ## Set up
 
