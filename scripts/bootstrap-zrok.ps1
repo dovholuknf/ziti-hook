@@ -1,5 +1,7 @@
-# Enable a zrok environment in a temp ZROK2_HOME and print it as one base64 string for a GitHub secret.
-# Works in Windows PowerShell and in pwsh on Windows, Linux and macOS. Your real ~/.zrok2 is never read or changed.
+# Enable a zrok environment in a temp home and print it as one base64 string for a GitHub secret.
+# Works in Windows PowerShell and in pwsh on Windows, Linux and macOS.
+# zrok2 keeps its state in ~/.zrok2 and has no override for that folder, so this script points the home variables at a
+# temp folder instead. Your real ~/.zrok2 is never read or changed.
 param(
     [Parameter(Mandatory)][string]$Token,
     [string]$Description = 'ziti-hook github action'
@@ -7,25 +9,27 @@ param(
 $ErrorActionPreference = 'Stop'
 if (-not (Get-Command zrok2 -ErrorAction SilentlyContinue)) { throw 'zrok2 is not on PATH' }
 
-$home2 = Join-Path ([IO.Path]::GetTempPath()) ("zrok2-" + [guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Path $home2 | Out-Null
-$oldHome = $env:ZROK2_HOME
+$tmp = Join-Path ([IO.Path]::GetTempPath()) ("zrok2-" + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $tmp | Out-Null
+$saved = @{ HOME = $env:HOME; USERPROFILE = $env:USERPROFILE }
 try {
-    $env:ZROK2_HOME = $home2
+    $env:HOME = $tmp
+    $env:USERPROFILE = $tmp
     & zrok2 enable --headless -d $Description $Token | Out-Host
     if ($LASTEXITCODE -ne 0) { throw "zrok2 enable failed with exit code $LASTEXITCODE" }
+    $state = Join-Path $tmp '.zrok2'
+    if (-not (Test-Path $state)) { throw "zrok2 enable wrote nothing to $state" }
 
-    $files = Get-ChildItem -File $home2 | ForEach-Object Name
-    if (-not $files) { throw "zrok2 enable wrote no files to $home2" }
     $tgz = Join-Path ([IO.Path]::GetTempPath()) ("zrok2-" + [guid]::NewGuid().ToString('N') + '.tgz')
-    & tar -czf $tgz -C $home2 @files
+    & tar -czf $tgz -C $state .
     if ($LASTEXITCODE -ne 0) { throw 'tar failed' }
     $blob = [Convert]::ToBase64String([IO.File]::ReadAllBytes($tgz))
     Remove-Item $tgz -Force
 }
 finally {
-    $env:ZROK2_HOME = $oldHome
-    Remove-Item -Recurse -Force $home2 -ErrorAction SilentlyContinue
+    $env:HOME = $saved.HOME
+    $env:USERPROFILE = $saved.USERPROFILE
+    Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 }
 
 Write-Host @'

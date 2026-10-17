@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Enable a zrok environment in a temp ZROK2_HOME and print it as one base64 string for a GitHub secret.
+# Enable a zrok environment in a temp home and print it as one base64 string for a GitHub secret.
 # Usage: bootstrap-zrok.sh <account-token> [env-description]
-# Your real ~/.zrok2 is never read or changed.
+# zrok2 keeps its state in ~/.zrok2 and has no override for that folder, so this script points HOME at a temp
+# folder instead. Your real ~/.zrok2 is never read or changed.
 set -euo pipefail
 
 token="${1:?usage: bootstrap-zrok.sh <account-token> [env-description]}"
@@ -10,17 +11,15 @@ command -v zrok2 >/dev/null || { echo "zrok2 is not on PATH" >&2; exit 1; }
 
 home="$(mktemp -d)"
 trap 'rm -rf "$home"' EXIT
-export ZROK2_HOME="$home"
+export HOME="$home" USERPROFILE="$home"
 
 zrok2 enable --headless -d "$desc" "$token" >&2
+[ -d "$home/.zrok2" ] || { echo "zrok2 enable wrote nothing to $home/.zrok2" >&2; exit 1; }
 
-# Flat tarball of the files zrok wrote, so the action can lay them down in its own temp home.
-files=()
-for f in "$home"/*; do [ -f "$f" ] && files+=("$(basename "$f")"); done
-[ "${#files[@]}" -gt 0 ] || { echo "zrok2 enable wrote no files to $home" >&2; exit 1; }
-blob="$(tar -czf - -C "$home" "${files[@]}" | base64 | tr -d '\n')"
+# Tarball of everything zrok wrote, including identities/, for the action to lay down in its own temp home.
+blob="$(tar -czf - -C "$home/.zrok2" . | base64 | tr -d '\n')"
 
-cat >&2 <<EOF
+cat >&2 <<MSG
 
 Next steps
 1. Add the string printed below to your repo as the secret ZROK_ENV (Settings, Secrets and variables, Actions).
@@ -29,5 +28,5 @@ Next steps
 3. Use the action with transport: zrok, zrok-env: \${{ secrets.ZROK_ENV }}, zrok-share-token: \${{ secrets.ZROK_SHARE_TOKEN }}.
 4. To revoke, run "zrok2 disable" for this environment or regenerate the account token.
 
-EOF
+MSG
 printf '%s\n' "$blob"

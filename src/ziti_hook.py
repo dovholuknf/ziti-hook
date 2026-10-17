@@ -3,6 +3,7 @@ import base64
 import io
 import json
 import os
+import posixpath
 import sys
 import tarfile
 import tempfile
@@ -71,9 +72,11 @@ def post_ziti(url, body, headers):
         sys.exit("ziti-hook: input ziti-identity is required for transport ziti")
     path = os.path.join(tempfile.mkdtemp(prefix="ziti-hook-"), "identity.json")
     write_secret(path, identity)
-    openziti.load(path)
+    _, err = openziti.load(path)
+    if err:
+        sys.exit("ziti-hook: could not load the ziti identity, error %s" % err)
     try:
-        with openziti.zitify():
+        with openziti.monkeypatch():
             req = urllib.request.Request(url, data=body, headers=headers, method="POST")
             with urllib.request.urlopen(req, timeout=int(inp("timeout", "30"))) as r:
                 return r.status, r.read()
@@ -84,14 +87,20 @@ def post_ziti(url, body, headers):
 
 
 def lay_down_zrok_env(blob):
-    """Unpack the bootstrap tarball into a private ZROK2_HOME so the SDK finds an enabled environment."""
+    """Unpack the bootstrap tarball to <tmp>/.zrok2 and point HOME there, where the zrok SDK looks for it."""
     home = tempfile.mkdtemp(prefix="zrok2-")
+    root = os.path.join(home, ".zrok2")
     with tarfile.open(fileobj=io.BytesIO(base64.b64decode(blob)), mode="r:gz") as t:
         for m in t.getmembers():
-            if not m.isfile() or os.path.basename(m.name) != m.name:
+            name = posixpath.normpath(m.name)
+            if m.isdir():
+                continue
+            if not m.isfile() or name.startswith(("/", "..")):
                 sys.exit("ziti-hook: unexpected entry in zrok-env: " + m.name)
-            write_secret(os.path.join(home, m.name), t.extractfile(m).read().decode())
-    os.environ["ZROK2_HOME"] = home
+            dest = os.path.join(root, *name.split("/"))
+            os.makedirs(os.path.dirname(dest), mode=0o700, exist_ok=True)
+            write_secret(dest, t.extractfile(m).read().decode())
+    os.environ["HOME"] = os.environ["USERPROFILE"] = home
     return home
 
 
@@ -102,20 +111,25 @@ def post_zrok(url, body, headers):
         sys.exit("ziti-hook: inputs zrok-env and zrok-share-token are required for transport zrok")
     lay_down_zrok_env(blob)
     import zrok2.dialer as zdial
+    from zrok2 import model
+    from zrok2.access import Access
+    from zrok2.environment.root import Load
 
     u = urllib.parse.urlsplit(url)
     path = (u.path or "/") + ("?" + u.query if u.query else "")
     head = "POST %s HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\nConnection: close\r\n" % (path, u.netloc, len(body))
     head += "".join("%s: %s\r\n" % kv for kv in headers.items()) + "\r\n"
-    conn = zdial.Dialer(token).dial()
-    conn.sendall(head.encode() + body)
-    raw = b""
-    while True:
-        chunk = conn.recv(65536)
-        if not chunk:
-            break
-        raw += chunk
-    conn.close()
+    root = Load()
+    with Access(root, model.AccessRequest(ShareToken=token)):
+        conn = zdial.Dialer(token, root)
+        conn.sendall(head.encode() + body)
+        raw = b""
+        while True:
+            chunk = conn.recv(65536)
+            if not chunk:
+                break
+            raw += chunk
+        conn.close()
     status_line, _, rest = raw.partition(b"\r\n")
     return int(status_line.split()[1]), rest.partition(b"\r\n\r\n")[2]
 

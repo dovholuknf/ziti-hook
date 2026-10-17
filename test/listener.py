@@ -33,11 +33,10 @@ def serve_ziti(identity, service, handler):
     ztx, err = openziti.load(identity)
     if err:
         sys.exit("load failed: %s" % err)
-    srv = HTTPServer(("", 0), handler, bind_and_activate=False)
     with openziti.monkeypatch(bindings={("0.0.0.0", 80): {"ztx": ztx, "service": service}}):
-        srv.server_bind()
-        srv.server_activate()
-        srv.serve_forever()
+        srv = HTTPServer(("0.0.0.0", 80), handler)
+    print("bound service %s" % service, flush=True)
+    srv.serve_forever()
 
 
 if __name__ == "__main__":

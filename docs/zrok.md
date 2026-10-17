@@ -4,7 +4,7 @@ The receiver has no public endpoint. The workflow dials a zrok private share wit
 
 1. Use a dedicated zrok account for this. A leaked environment then exposes only that account.
 2. Install `zrok2` and get the account token of the dedicated account.
-3. Run the bootstrap script. It runs `zrok2 enable` with `ZROK2_HOME` pointed at a temp folder, so your own
+3. Run the bootstrap script. It runs `zrok2 enable` with `HOME` pointed at a temp folder, so your own
    `~/.zrok2` is not touched, then prints the environment as one base64 string:
 
    ```
