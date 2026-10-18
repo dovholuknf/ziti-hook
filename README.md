@@ -35,6 +35,8 @@ guide explains the tradeoff in its own "Why" section.
 | `transport` | `ziti` or `zrok`. Default `ziti`. |
 | `url` | Receiver URL. For ziti, the intercept address. For zrok, only the path and Host header are used. |
 | `payload`, `content-type` | Request body and its type. Default is the raw GitHub event JSON. |
+| `payload-mode` | `event` (default) sends the raw event JSON. `run` sends a workflow_run-shaped report of this run, built from the job context with no checkout. |
+| `conclusion` | Conclusion reported in `run` mode. Default `failure`. |
 | `headers` | Extra headers, one `Name: value` per line. |
 | `secret`, `secret-header` | Shared secret and the header that carries it. Default `X-Ziti-Hook-Secret`. |
 | `audience` | Audience for the GitHub OIDC token. |

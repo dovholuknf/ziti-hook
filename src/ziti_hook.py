@@ -19,12 +19,55 @@ def inp(name, default=""):
     return default
 
 
+RUN_CONCLUSIONS = ("success", "failure", "cancelled", "timed_out", "action_required")
+
+
+def build_run_body(conclusion):
+    """Build a workflow_run-shaped report of this run from the GITHUB_* context, so no checkout or script is needed."""
+    env = os.environ
+    if conclusion not in RUN_CONCLUSIONS:
+        sys.exit("ziti-hook: conclusion %s is not one of %s" % (conclusion, ", ".join(RUN_CONCLUSIONS)))
+    repo = env.get("GITHUB_REPOSITORY", "")
+    run_id = env.get("GITHUB_RUN_ID", "")
+    attempt = env.get("GITHUB_RUN_ATTEMPT", "1")
+    if not (run_id.isdigit() and attempt.isdigit()):
+        sys.exit("ziti-hook: payload-mode run needs GITHUB_RUN_ID and GITHUB_RUN_ATTEMPT")
+    wf_path = env.get("GITHUB_WORKFLOW_REF", "")
+    wf_path = wf_path.removeprefix(repo + "/").split("@", 1)[0]
+    sha = env.get("GITHUB_SHA", "")
+    event_path = env.get("GITHUB_EVENT_PATH", "")
+    if env.get("GITHUB_EVENT_NAME") == "pull_request" and os.path.isfile(event_path):
+        with open(event_path) as f:
+            sha = json.load(f).get("pull_request", {}).get("head", {}).get("sha") or sha
+    server = env.get("GITHUB_SERVER_URL", "https://github.com")
+    return {
+        "action": "completed",
+        "workflow_run": {
+            "id": int(run_id),
+            "run_attempt": int(attempt),
+            "name": env.get("GITHUB_WORKFLOW", ""),
+            "path": wf_path,
+            "head_branch": env.get("GITHUB_HEAD_REF") or env.get("GITHUB_REF_NAME", ""),
+            "head_sha": sha,
+            "event": env.get("GITHUB_EVENT_NAME", ""),
+            "conclusion": conclusion,
+            "html_url": "%s/%s/actions/runs/%s" % (server, repo, run_id),
+        },
+        "repository": {"full_name": repo},
+    }
+
+
 def build_payload():
     """Return (body bytes, content type). The default body is the raw GitHub event JSON."""
     body = inp("payload")
     ctype = inp("content-type", "application/json")
     if body:
         return body.encode(), ctype
+    mode = inp("payload-mode", "event")
+    if mode == "run":
+        return json.dumps(build_run_body(inp("conclusion", "failure")), separators=(",", ":")).encode(), "application/json"
+    if mode != "event":
+        sys.exit("ziti-hook: payload-mode must be event or run, got " + mode)
     event_path = os.environ.get("GITHUB_EVENT_PATH", "")
     if event_path and os.path.exists(event_path):
         with open(event_path, "rb") as f:
