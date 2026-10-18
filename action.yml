@@ -53,4 +53,4 @@ outputs:
     description: HTTP status returned by the receiver
 runs:
   using: docker
-  image: Dockerfile
+  image: docker://ghcr.io/dovholuknf/ziti-hook:main
