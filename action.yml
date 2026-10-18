@@ -13,6 +13,14 @@ inputs:
   payload:
     description: Request body. Defaults to the raw GitHub event JSON.
     default: ""
+  payload-mode:
+    description: >-
+      event sends the raw GitHub event JSON. run sends a workflow_run-shaped report of this run built from the
+      GITHUB_* context, with no checkout needed. Ignored when payload is set.
+    default: event
+  conclusion:
+    description: Conclusion to report when payload-mode is run. One of success, failure, cancelled, timed_out, action_required.
+    default: failure
   content-type:
     description: Content type of payload
     default: application/json
