@@ -17,7 +17,7 @@ inputs:
     description: Content type of payload
     default: application/json
   headers:
-    description: Extra headers, one "Name: value" per line
+    description: 'Extra headers, one "Name: value" per line'
     default: ""
   secret:
     description: Shared secret, sent in secret-header
