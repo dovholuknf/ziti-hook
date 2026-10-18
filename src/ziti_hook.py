@@ -12,7 +12,11 @@ import urllib.request
 
 
 def inp(name, default=""):
-    return os.environ.get("INPUT_" + name.upper().replace("-", "_"), default).strip()
+    key = "INPUT_" + name.upper()
+    for k in (key, key.replace("-", "_")):
+        if k in os.environ:
+            return os.environ[k].strip()
+    return default
 
 
 def build_payload():
