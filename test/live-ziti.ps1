@@ -27,12 +27,12 @@ try {
     function Send($sec) {
         $env:INPUT_TRANSPORT = 'ziti'
         $env:INPUT_URL = $Url
-        $env:INPUT_ZITI_IDENTITY = Get-Content -Raw (Join-Path $IdentityDir 'ziti-hook-gh.json')
+        ${env:INPUT_ZITI-IDENTITY} = Get-Content -Raw (Join-Path $IdentityDir 'ziti-hook-gh.json')
         $env:INPUT_SECRET = $sec
         $env:INPUT_PAYLOAD = '{"hello":"ziti-hook"}'
         & $Python (Join-Path $root 'src\ziti_hook.py') 2>&1 | Out-Host
         $code = $LASTEXITCODE
-        Remove-Item Env:INPUT_ZITI_IDENTITY
+        Remove-Item "Env:INPUT_ZITI-IDENTITY"
         $code
     }
 
