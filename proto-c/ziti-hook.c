@@ -63,7 +63,7 @@ static void send_hook(ziti_context ztx) {
     r->resp.body_cb = body_cb;
 }
 
-static void on_auth(ziti_context ztx, const ziti_auth_event *ev) {
+static void on_auth(ziti_context ztx, const struct ziti_auth_event *ev) {
     const char *want = getenv("ZITI_SIGNER");
     int rc;
     switch (ev->action) {
@@ -129,7 +129,7 @@ static void ca_resp_cb(tlsuv_http_resp_t *resp, void *data) {
 
 static char *fetch_ca(const char *ctrl) {
     ca_fetch_t f = {0};
-    tls_context *tls = default_tls_context(NULL, 0);
+    tls_context *tls = default_tls_context();
     tls->set_cert_verify(tls, trust_any, NULL);
 
     tlsuv_http_t h;
