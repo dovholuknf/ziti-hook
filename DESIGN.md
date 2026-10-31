@@ -57,6 +57,61 @@ identity file. Options: a spike with the controller REST ext-jwt login, a differ
 
 For zrok, OIDC can authenticate the POST at the receiver but cannot replace the zrok environment.
 
+### ext-jwt spike, 2026-10-30
+
+Answer: yes in principle, not with the current Python SDK. Verified and unverified parts are separate below.
+
+Verified:
+
+- The `openziti` Python package installed in the action image has no ext-jwt code. A grep for `ext-jwt` and `ext_jwt`
+  over the package finds nothing.
+- The GitHub token has `iss` `https://token.actions.githubusercontent.com`, a settable `aud`, and a `sub` that varies
+  with the trigger: `repo:ORG/REPO:ref:refs/heads/BRANCH`, `repo:ORG/REPO:pull_request`,
+  `repo:ORG/REPO:environment:ENV`. It also carries `repository`, `repository_id`, `repository_owner`, `ref`,
+  `workflow_ref`, `job_workflow_ref` and `run_id`. The JWKS URL is the `jwks_uri` in the discovery document at
+  `/.well-known/openid-configuration`.
+- A Ziti ext-jwt-signer needs `issuer` equal to the token `iss`, a non-empty `audience` equal to the token `aud`, a
+  claims property that maps to the identity external id, and the JWKS endpoint.
+
+Unverified, needs a live controller:
+
+- The controller login. As I recall it is `POST /edge/client/v1/authenticate?method=ext-jwt` with the JWT as a bearer.
+  The result is a session token, which the SDK needs to dial.
+- Whether the C SDK under the Python wrapper exposes an external-JWT entry point. ziti-sdk-c has ext-jwt login work
+  (see #1175 on secondary tokens), but the Python wrapper does not surface it.
+
+Design consequences:
+
+- Do not map `sub`. It changes per branch, PR and environment, so a single identity cannot match it. Map `repository`
+  (one identity per repo) or `repository_id`, which survives a rename. Use `repository_id` if the signer can read it.
+- Check `job_workflow_ref` on the receiver if the repo must run only one workflow file.
+- The token lives minutes. The identity must be created in advance with an external id, not enrolled.
+- Set `audience` to a value only Ziti accepts, for example `ziti-hook`, and pass it as the action `audience` input.
+
+Recommended path: keep the enrolled identity for the ziti transport and verify the OIDC token on the receiver now.
+That already replaces the shared secret. Revisit ziti-side ext-jwt when the Python SDK exposes it, or by running the
+POST through `ziti-edge-tunnel` on the runner, which already supports ext-jwt signers.
+
+## Go client instead of Python (prototype, 2026-10-30)
+
+`proto/main.go` authenticates to the controller with the GitHub OIDC token and POSTs over a Ziti dial. It compiles
+and is not run against a live controller.
+
+- `sdk-golang` v1.9.1 has primary ext-jwt auth: `edge_apis.NewJwtCredentials(jwt)` with `AuthMethodJwtExt`, passed in
+  `ziti.Config.Credentials`. This removes the Python SDK blocker for the ziti transport.
+- A static `linux/amd64` build with `-trimpath -ldflags '-s -w'` is 15.1 MB. Run from `FROM scratch` plus CA
+  certificates, the image is about that size. The current image is `python:3.12-slim` plus `openziti` and `zrok2`.
+  I did not measure it.
+- TinyGo is not installed here. I expect it not to build `sdk-golang`, which uses `net/http`, reflection and protobuf
+  heavily. Not tried.
+- zrok also has a Go SDK, so one Go binary could serve both transports. Not verified.
+- The C SDK route (`ziti-sdk-c` plus a small libuv app) would give the smallest binary. It has ext-jwt support but no
+  zrok client, and the HTTP framing and TLS wiring are hand-written. Not tried.
+- The prototype does not set the controller CA. A private controller CA needs to be loaded into the credentials. Open.
+
+Docker is not required. A composite action could download the static binary from a release, which skips the image
+pull. Both are open.
+
 ## Delivered to a new user
 
 - Two short numbered guides, one per transport.
