@@ -53,6 +53,9 @@ static void body_cb(tlsuv_http_req_t *req, char *body, ssize_t len) {
 }
 
 static void send_hook(ziti_context ztx) {
+    static int sent;
+    if (sent) return;
+    sent = 1;
     const char *payload = need("HOOK_BODY");
     ziti = ztx;
     ziti_src_init(loop, &zs, need("ZITI_SERVICE"), ztx);
@@ -77,6 +80,8 @@ static void on_auth(ziti_context ztx, const struct ziti_auth_event *ev) {
             rc = ziti_ext_auth_token(ztx, need("ZITI_JWT"));
             if (rc != ZITI_OK) fail("submit token", rc);
             break;
+        case ziti_auth_success:
+            break;
         default:
             fprintf(stderr, "ziti-hook: unexpected auth action %d\n", ev->action);
             exit(1);
@@ -90,7 +95,8 @@ static void on_event(ziti_context ztx, const ziti_event_t *ev) {
             break;
         case ZitiContextEvent:
             if (ev->ctx.ctrl_status == ZITI_OK) send_hook(ztx);
-            else if (ev->ctx.ctrl_status != ZITI_PARTIALLY_AUTHENTICATED && ev->ctx.ctrl_status != ZITI_WTF)
+            else if (ev->ctx.ctrl_status != ZITI_PARTIALLY_AUTHENTICATED && ev->ctx.ctrl_status != ZITI_WTF &&
+                     ev->ctx.ctrl_status != ZITI_DISABLED)
                 fail("controller", ev->ctx.ctrl_status);
             break;
         default:
@@ -167,6 +173,7 @@ int main(void) {
     need("HOOK_BODY");
 
     loop = uv_default_loop();
+    ziti_log_init(loop, ZITI_LOG_DEFAULT_LEVEL, NULL);
     char *ca = fetch_ca(ctrl);
 
     ziti_config cfg = {.controller_url = (char *) ctrl};

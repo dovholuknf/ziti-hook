@@ -95,7 +95,7 @@ POST through `ziti-edge-tunnel` on the runner, which already supports ext-jwt si
 ## Go client instead of Python (prototype, 2026-10-30)
 
 `proto/main.go` authenticates to the controller with the GitHub OIDC token and POSTs over a Ziti dial. It compiles
-and is not run against a live controller.
+and ran against a live controller (see Live test).
 
 - `sdk-golang` v1.9.1 has primary ext-jwt auth: `edge_apis.NewJwtCredentials(jwt)` with `AuthMethodJwtExt`, passed in
   `ziti.Config.Credentials`. This removes the Python SDK blocker for the ziti transport.
@@ -112,6 +112,33 @@ and is not run against a live controller.
 Docker is not required. A composite action could download the static binary from a release, which skips the image
 pull. Both are open.
 
+## Live test (2026-10-31)
+
+Both clients ran against a throwaway `ziti edge quickstart` (v2.0.8) in an Alpine WSL VM. The signer used a cert from
+a throwaway RSA key, `iss` and `aud` matched, the identity had `external-id` `repo:dovholuknf/ziti-hook` under an
+auth policy allowing only that signer, and the service was hosted by the router with a bind policy. Each client
+authenticated with a minted JWT, dialed the service and POSTed. A stand-in receiver logged the body and returned 200.
+
+| Client | Result | Size |
+| --- | --- | --- |
+| Go (`proto/`) | HTTP 200, exit 0 | 15.1 MB static, stripped |
+| C (`proto-c/`) | HTTP 200, exit 0 | 7.5 MB static musl |
+
+Findings:
+
+- Controller login with an external JWT works from both SDKs. The `authenticate?method=ext-jwt` question is closed.
+- The Go client needs no signer settings beyond a normal ext-jwt-signer.
+- The C SDK lists a signer only if it has both `externalAuthUrl` and `clientId` (`ext_jwt_singers_cb`,
+  ziti-sdk-c 1.20.1). A plain JWT signer is invisible to `ziti_use_ext_jwt_signer`. The test signer got a dummy
+  `externalAuthUrl` and `clientId`. Decide whether the setup guide asks for those on the signer, or the C client skips
+  `ziti_use_ext_jwt_signer`. Not tried.
+- The C SDK sends a `ziti_auth_success` event, and a `ZitiContextEvent` with `ZITI_OK` more than once and one with
+  `ZITI_DISABLED` after `ziti_shutdown`. The client now ignores the repeats and the shutdown status. Without that
+  it opened two circuits and hung.
+- `ziti` linux binaries are glibc. On Alpine they need `gcompat`.
+
+Not yet tested: a real GitHub token, the Docker images, an identity-per-repo mapping on `repository_id`.
+
 ## Delivered to a new user
 
 - Two short numbered guides, one per transport.
@@ -123,4 +150,4 @@ pull. Both are open.
 ## Open
 
 - Receiver authentication: shared secret header first, OIDC after the ziti-py question is answered.
-- Live ziti test needs a throwaway listener bound as `sg4-admin`, which needs a bind policy tweak.
+- Go or C as the shipped client, and how the C client selects a signer without `clientId`.
