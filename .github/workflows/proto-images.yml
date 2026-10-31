@@ -2,7 +2,7 @@ name: proto-images
 on:
   workflow_dispatch:
   push:
-    branches: ['claude/**']
+    branches: [design, 'claude/**']
     paths: ['proto/**', 'proto-c/**', 'scripts/build-proto-images.sh', '.github/workflows/proto-images.yml']
 permissions:
   contents: read
