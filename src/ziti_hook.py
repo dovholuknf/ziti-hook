@@ -7,6 +7,7 @@ import posixpath
 import sys
 import tarfile
 import tempfile
+import threading
 import urllib.parse
 import urllib.request
 
@@ -125,7 +126,7 @@ def post_ziti(url, body, headers):
     try:
         with openziti.monkeypatch():
             req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=int(inp("timeout", "30"))) as r:
+            with urllib.request.urlopen(req, timeout=int(inp("timeout", "15"))) as r:
                 return r.status, r.read()
     except urllib.error.HTTPError as e:
         return e.code, e.read()
@@ -181,7 +182,7 @@ def post_zrok(url, body, headers):
     return int(status_line.split()[1]), rest.partition(b"\r\n\r\n")[2]
 
 
-def main():
+def run():
     transport = inp("transport", "ziti")
     url = inp("url")
     if not url:
@@ -202,6 +203,39 @@ def main():
     if status >= 300:
         print(resp.decode(errors="replace")[:2000])
         sys.exit(1)
+
+
+def start_deadline(fail):
+    """Kill the process after `timeout` seconds in total. Socket timeouts do not bound the ziti and zrok SDK calls."""
+    seconds = int(inp("timeout", "15"))
+
+    def expire():
+        msg = "ziti-hook: no response within %ds" % seconds
+        if fail:
+            print(msg, flush=True)
+        else:
+            print("::warning::ziti-hook failed, ignored because fail-on-error is false: " + msg, flush=True)
+        os._exit(1 if fail else 0)
+
+    timer = threading.Timer(seconds, expire)
+    timer.daemon = True
+    timer.start()
+
+
+def main():
+    """Run, and report any failure as a warning instead of failing the step when fail-on-error is false."""
+    fail = inp("fail-on-error", "true").lower() != "false"
+    start_deadline(fail)
+    try:
+        run()
+    except SystemExit as e:
+        if fail or e.code in (0, None):
+            raise
+        print("::warning::ziti-hook failed, ignored because fail-on-error is false: %s" % e.code)
+    except Exception as e:
+        if fail:
+            raise
+        print("::warning::ziti-hook failed, ignored because fail-on-error is false: %s: %s" % (type(e).__name__, e))
 
 
 if __name__ == "__main__":

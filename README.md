@@ -40,11 +40,12 @@ guide explains the tradeoff in its own "Why" section.
 | `headers` | Extra headers, one `Name: value` per line. |
 | `secret`, `secret-header` | Shared secret and the header that carries it. Default `X-Ziti-Hook-Secret`. |
 | `audience` | Audience for the GitHub OIDC token. |
-| `timeout` | Request timeout in seconds. Default 30. |
+| `fail-on-error` | Default `true`. Set `false` to log a warning instead of failing the step when the post fails. |
+| `timeout` | Total seconds before the step gives up, covering identity load, connect and response. Default 15. |
 | `ziti-identity` | Enrolled OpenZiti identity JSON. Transport `ziti` only. |
 | `zrok-env`, `zrok-share-token` | Output of `scripts/bootstrap-zrok` and the private share token. Transport `zrok` only. |
 
-The action sets the output `status` to the HTTP status code and fails the step on any status of 300 or more.
+The action sets the output `status` to the HTTP status code and fails the step on any status of 300 or more, or on any other failure, unless `fail-on-error` is `false`.
 
 ## Layout
 

@@ -36,9 +36,12 @@ inputs:
   audience:
     description: Audience claim for the GitHub OIDC token. The token is sent only if the job has id-token write.
     default: ""
+  fail-on-error:
+    description: Fail the step when the post fails or the receiver returns 300 or more. Set false to log a warning instead.
+    default: "true"
   timeout:
-    description: Request timeout in seconds
-    default: "30"
+    description: Total time in seconds before the step gives up, covering identity load, connect and response
+    default: "15"
   ziti-identity:
     description: Contents of an enrolled OpenZiti identity JSON. Store it as a secret. Needed for transport ziti.
     default: ""
